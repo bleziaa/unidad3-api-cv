@@ -1,106 +1,189 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Experiencia = require('../src/models/Experiencia');
-const controller = require('../src/controllers/experienciaController');
+const controlador = require('../src/controllers/experienciaController');
 
-const validId = '507f1f77bcf86cd799439011';
-const sample = { _id: validId, empresa: 'Empresa de prueba', cargo: 'Desarrollador', descripcion: 'Desarrollo de aplicaciones', fechaInicio: new Date('2025-01-01') };
+const idDePrueba = '507f1f77bcf86cd799439011';
 
-function response() {
+const experienciaDePrueba = {
+  _id: idDePrueba,
+  empresa: 'Empresa de prueba',
+  cargo: 'Desarrollador',
+  descripcion: 'Desarrollo de aplicaciones',
+  fechaInicio: new Date('2025-01-01')
+};
+
+function crearRespuesta() {
   return {
     statusCode: 200,
     body: undefined,
-    status(code) { this.statusCode = code; return this; },
-    json(data) { this.body = data; return this; }
+
+    status(codigo) {
+      this.statusCode = codigo;
+      return this;
+    },
+
+    json(contenido) {
+      this.body = contenido;
+      return this;
+    }
   };
 }
 
 test('POST crea una experiencia y responde 201', async () => {
-  Experiencia.create = async data => ({ ...data, _id: validId });
-  const res = response();
-  await controller.crearExperiencia({ body: sample }, res);
-  assert.equal(res.statusCode, 201);
-  assert.equal(res.body.datos._id, validId);
+  Experiencia.create = async datos => ({
+    ...datos,
+    _id: idDePrueba
+  });
+
+  const respuesta = crearRespuesta();
+  await controlador.crearExperiencia({ body: experienciaDePrueba }, respuesta);
+
+  assert.equal(respuesta.statusCode, 201);
+  assert.equal(respuesta.body.datos._id, idDePrueba);
 });
 
 test('POST responde 400 cuando los datos son inválidos', async () => {
-  Experiencia.create = async () => { const error = new Error('empresa requerida'); error.name = 'ValidationError'; throw error; };
-  const res = response();
-  await controller.crearExperiencia({ body: {} }, res);
-  assert.equal(res.statusCode, 400);
+  Experiencia.create = async () => {
+    const error = new Error('empresa requerida');
+    error.name = 'ValidationError';
+    throw error;
+  };
+
+  const respuesta = crearRespuesta();
+  await controlador.crearExperiencia({ body: {} }, respuesta);
+
+  assert.equal(respuesta.statusCode, 400);
 });
 
-test('GET lista experiencias y devuelve el total', async () => {
-  Experiencia.find = () => ({ sort: async () => [sample] });
-  const res = response();
-  await controller.obtenerExperiencias({}, res);
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body.total, 1);
+test('GET lista las experiencias y devuelve el total', async () => {
+  Experiencia.find = () => ({
+    sort: async () => [experienciaDePrueba]
+  });
+
+  const respuesta = crearRespuesta();
+  await controlador.obtenerExperiencias({}, respuesta);
+
+  assert.equal(respuesta.statusCode, 200);
+  assert.equal(respuesta.body.total, 1);
 });
 
 test('GET por ID rechaza identificadores inválidos', async () => {
-  const res = response();
-  await controller.obtenerExperiencia({ params: { id: 'incorrecto' } }, res);
-  assert.equal(res.statusCode, 400);
+  const respuesta = crearRespuesta();
+
+  await controlador.obtenerExperiencia(
+    { params: { id: 'incorrecto' } },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 400);
 });
 
-test('GET por ID devuelve el registro encontrado', async () => {
-  Experiencia.findById = async () => sample;
-  const res = response();
-  await controller.obtenerExperiencia({ params: { id: validId } }, res);
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body.datos.empresa, sample.empresa);
+test('GET por ID devuelve la experiencia encontrada', async () => {
+  Experiencia.findById = async () => experienciaDePrueba;
+
+  const respuesta = crearRespuesta();
+  await controlador.obtenerExperiencia(
+    { params: { id: idDePrueba } },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 200);
+  assert.equal(respuesta.body.datos.empresa, experienciaDePrueba.empresa);
 });
 
-test('GET por ID devuelve 404 si no existe', async () => {
+test('GET por ID devuelve 404 cuando no existe el registro', async () => {
   Experiencia.findById = async () => null;
-  const res = response();
-  await controller.obtenerExperiencia({ params: { id: validId } }, res);
-  assert.equal(res.statusCode, 404);
+
+  const respuesta = crearRespuesta();
+  await controlador.obtenerExperiencia(
+    { params: { id: idDePrueba } },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 404);
 });
 
-test('PUT actualiza y activa los validadores del modelo', async () => {
-  let options;
-  Experiencia.findByIdAndUpdate = async (id, data, opts) => { options = opts; return { ...sample, ...data }; };
-  const res = response();
-  await controller.actualizarExperiencia({ params: { id: validId }, body: { cargo: 'Líder técnico' } }, res);
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body.datos.cargo, 'Líder técnico');
-  assert.equal(options.runValidators, true);
-  assert.equal(options.new, true);
+test('PUT actualiza la experiencia y ejecuta los validadores', async () => {
+  let opcionesDeActualizacion;
+
+  Experiencia.findByIdAndUpdate = async (id, datos, opciones) => {
+    opcionesDeActualizacion = opciones;
+    return { ...experienciaDePrueba, ...datos };
+  };
+
+  const respuesta = crearRespuesta();
+  await controlador.actualizarExperiencia(
+    {
+      params: { id: idDePrueba },
+      body: { cargo: 'Líder técnico' }
+    },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 200);
+  assert.equal(respuesta.body.datos.cargo, 'Líder técnico');
+  assert.equal(opcionesDeActualizacion.runValidators, true);
+  assert.equal(opcionesDeActualizacion.new, true);
 });
 
-test('PUT devuelve 404 si no existe el registro', async () => {
+test('PUT devuelve 404 cuando no encuentra la experiencia', async () => {
   Experiencia.findByIdAndUpdate = async () => null;
-  const res = response();
-  await controller.actualizarExperiencia({ params: { id: validId }, body: {} }, res);
-  assert.equal(res.statusCode, 404);
+
+  const respuesta = crearRespuesta();
+  await controlador.actualizarExperiencia(
+    { params: { id: idDePrueba }, body: {} },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 404);
 });
 
 test('DELETE elimina una experiencia existente', async () => {
-  Experiencia.findByIdAndDelete = async () => sample;
-  const res = response();
-  await controller.eliminarExperiencia({ params: { id: validId } }, res);
-  assert.equal(res.statusCode, 200);
-  assert.match(res.body.mensaje, /eliminada/);
+  Experiencia.findByIdAndDelete = async () => experienciaDePrueba;
+
+  const respuesta = crearRespuesta();
+  await controlador.eliminarExperiencia(
+    { params: { id: idDePrueba } },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 200);
+  assert.match(respuesta.body.mensaje, /eliminada/);
 });
 
-test('DELETE devuelve 404 si no existe', async () => {
+test('DELETE devuelve 404 cuando el registro no existe', async () => {
   Experiencia.findByIdAndDelete = async () => null;
-  const res = response();
-  await controller.eliminarExperiencia({ params: { id: validId } }, res);
-  assert.equal(res.statusCode, 404);
+
+  const respuesta = crearRespuesta();
+  await controlador.eliminarExperiencia(
+    { params: { id: idDePrueba } },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 404);
 });
 
 test('DELETE rechaza identificadores inválidos', async () => {
-  const res = response();
-  await controller.eliminarExperiencia({ params: { id: 'x' } }, res);
-  assert.equal(res.statusCode, 400);
+  const respuesta = crearRespuesta();
+
+  await controlador.eliminarExperiencia(
+    { params: { id: 'x' } },
+    respuesta
+  );
+
+  assert.equal(respuesta.statusCode, 400);
 });
 
-test('GET lista responde 500 ante errores de base de datos', async () => {
-  Experiencia.find = () => ({ sort: async () => { throw new Error('fallo de conexión'); } });
-  const res = response();
-  await controller.obtenerExperiencias({}, res);
-  assert.equal(res.statusCode, 500);
+test('GET lista responde 500 cuando falla la consulta a la base de datos', async () => {
+  Experiencia.find = () => ({
+    sort: async () => {
+      throw new Error('fallo de conexión');
+    }
+  });
+
+  const respuesta = crearRespuesta();
+  await controlador.obtenerExperiencias({}, respuesta);
+
+  assert.equal(respuesta.statusCode, 500);
 });
